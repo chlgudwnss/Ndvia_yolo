@@ -1,0 +1,46 @@
+# 1. 필수 패키지 설치
+!pip install -q ultralytics yt-dlp opencv-python
+
+# 2. 유튜브 Shorts 영상 다운로드
+video_url = 'https://www.youtube.com/shorts/NJ4kfYqbvEQ'
+!yt-dlp -f bestvideo+bestaudio --merge-output-format mp4 {video_url} -o "video.mp4"
+
+# 3. YOLO 모델 불러오기
+from ultralytics import YOLO
+import cv2
+
+model = YOLO('yolov8n.pt')  # 가장 빠른 YOLOv8 경량 모델
+
+# 4. 영상 불러오기
+cap = cv2.VideoCapture('video.mp4')
+width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+fps = cap.get(cv2.CAP_PROP_FPS)
+
+# 출력 영상 저장 준비
+out = cv2.VideoWriter('output_fast.mp4', cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
+
+# 5. 프레임 간격 설정 (빠르게 처리)
+skip_frame = 3  # 매 3프레임마다 분석
+frame_count = 0
+
+while cap.isOpened():
+    ret, frame = cap.read()
+    if not ret:
+        break
+
+    if frame_count % skip_frame == 0:
+        # 차량 관련 클래스만 탐지 (car, motorcycle, bus, truck)
+        results = model(frame, classes=[2, 3, 5, 7])
+        frame = results[0].plot()
+
+    out.write(frame)
+    frame_count += 1
+
+cap.release()
+out.release()
+
+print("✅ 분석 완료! 'output_fast.mp4'로 저장되었습니다.")
+
+from IPython.display import Video
+Video('output_fast.mp4', embed=True)
